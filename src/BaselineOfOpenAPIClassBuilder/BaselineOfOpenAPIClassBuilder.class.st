@@ -15,6 +15,6 @@ BaselineOfOpenAPIClassBuilder >> baseline: spec [
 			with: [ spec repository: 'github://svenvc/NeoJSON/repository' ].
 
 		spec
-			package: 'OpenApi-Class-Builder'
+			package: 'OpenAPI-Class-Builder'
 			with: [ spec requires: #( 'NeoJSON' ) ] ]
 ]

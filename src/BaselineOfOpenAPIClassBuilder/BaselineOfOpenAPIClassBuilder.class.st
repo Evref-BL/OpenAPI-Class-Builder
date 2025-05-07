@@ -16,5 +16,5 @@ BaselineOfOpenAPIClassBuilder >> baseline: spec [
 
 		spec
 			package: 'OpenApi-Class-Builder'
-			with: [ spec requires: #( 'Neo-JSON-Core' ) ] ]
+			with: [ spec requires: #( 'NeoJSON' ) ] ]
 ]

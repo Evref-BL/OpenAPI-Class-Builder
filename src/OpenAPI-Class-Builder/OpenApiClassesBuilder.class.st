@@ -103,7 +103,7 @@ OpenApiClassesBuilder >> addMethodWithCode: aSourceCode toClass: aClass withProt
 	| transformation |
 	transformation := (RBAddMethodTransformation
 		                   sourceCode: aSourceCode
-		                   in: aClass class
+		                   in: aClass
 		                   withProtocol: protocolSymbol) generateChanges.
 
 	RBRefactoryChangeManager instance performChange:
@@ -291,7 +291,7 @@ OpenApiClassesBuilder >> createNewClass: aClassName inPackage: aPackageName [
 			                  superclass: #Object;
 			                  packageName: aPackageName asSymbol;
 			                  execute.
-			createdClasses add: self class environment at: className asSymbol. 
+			createdClasses add: (self class environment at: className asSymbol). 
 			 ].
 
 
@@ -340,7 +340,8 @@ OpenApiClassesBuilder >> inPackage: aPackageName [
 OpenApiClassesBuilder >> initialize [
 
 	packageName := 'OpenAPI-Class-Generated'.
-	prefix := 'OpenApi'
+	prefix := 'OpenApi'.
+	createdClasses := OrderedCollection new. 
 ]
 
 { #category : 'accessing' }

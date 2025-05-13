@@ -98,6 +98,21 @@ OpenApiClassesBuilder >> addComment: aComment inMethod: aMethodName inClass: aCl
 ]
 
 { #category : 'adding' }
+OpenApiClassesBuilder >> addMethodWithCode: aSourceCode toClass: aClass withProtocol: protocolSymbol [
+
+	| transformation |
+	transformation := (RBAddMethodTransformation
+		                   sourceCode: aSourceCode
+		                   in: aClass class
+		                   withProtocol: protocolSymbol) generateChanges.
+
+	RBRefactoryChangeManager instance performChange:
+		transformation model changes.
+		
+	^ aClass 
+]
+
+{ #category : 'adding' }
 OpenApiClassesBuilder >> addVariable: aVarName inClass: aClass [
 
 	| transformation |
@@ -148,9 +163,19 @@ OpenApiClassesBuilder >> createAccessorsInClass: aClass ForVarNamed: aVarName [
 ]
 
 { #category : 'compiler' }
-OpenApiClassesBuilder >> createClassNamed: className fromApiSchemaDic: schema [ 
-
-	^ self createClassNamed: className fromApiSchemaDic: schema withParentClass: nil
+OpenApiClassesBuilder >> createClassNamed: className fromApiSchemaDic: schema [
+	|newClass|
+	self
+		  createClassNamed: className
+		  fromApiSchemaDic: schema
+		  withParentClass: nil.
+	newClass := (self prefix, className) asClassInEnvironment: self class environment.
+	
+	self ensureNeoJSONReaderInitializerFor: newClass.
+	self ensureImporterFromJsonFor: newClass. 
+	
+	
+	^ newClass 
 ]
 
 { #category : 'compiler' }
@@ -244,19 +269,12 @@ OpenApiClassesBuilder >> createNeoJSONReaderFor: aClass withShemaProperty: prope
 					                'aNeoJSONReader
 					for: #ArraysOf{1}
 					customDo: [ :mapping | mapping listOfElementSchema: {1} ].'
-						                format: {
-								                (self prefix , attr asPharoClassName).
-								               } ])) }.
+						                format:
+						                { (self prefix , attr asPharoClassName) } ])) }.
 
 
-
-	transformation := (RBAddMethodTransformation
-		                   sourceCode: sourceCode
-		                   in: aClass class
-		                   withProtocol: #neoJSONReader) generateChanges.
-
-	RBRefactoryChangeManager instance performChange:
-		transformation model changes.
+ self addMethodWithCode: sourceCode  toClass: aClass class withProtocol: #neoJSONReader.
+	
 
 	^ aClass
 ]
@@ -278,6 +296,39 @@ OpenApiClassesBuilder >> createNewClass: aClassName inPackage: aPackageName [
 
 
 	^ self class environment at: className asSymbol
+]
+
+{ #category : 'compiler - neoJSON' }
+OpenApiClassesBuilder >> ensureImporterFromJsonFor: aClass [ 
+	|sourceCode|
+	sourceCode := 'importFromJSON: aJsonString
+	^ self initReader
+		  on: aJsonString readStream;
+		  nextAs: #ArrayOf{1}' format: { aClass name }.
+		
+	^ self addMethodWithCode: sourceCode toClass: aClass class  withProtocol: #import
+]
+
+{ #category : 'compiler - NeoJSON' }
+OpenApiClassesBuilder >> ensureNeoJSONReaderInitializerFor: aClass [ 
+	|sourceCode|
+	
+	sourceCode := 'initReader
+	| reader |
+	reader := NeoJSONReader new.
+
+	"initialize with all reader inside the generated package"
+	#''{1}'' asPackage classes do: [ :class |
+		class configureNeoJSONReader: reader ].
+
+	reader
+		for: #ArrayOf{2}
+		customDo: [ :mapping | mapping listOfElementSchema: self ].
+
+
+	^ reader' format: { packageName . aClass name }.
+	
+	^ self addMethodWithCode: sourceCode toClass: aClass class  withProtocol: #neoJSONReader.
 ]
 
 { #category : 'as yet unclassified' }

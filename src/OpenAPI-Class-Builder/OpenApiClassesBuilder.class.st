@@ -14,7 +14,8 @@ Class {
 		'jsonObject',
 		'jsonString',
 		'packageName',
-		'prefix'
+		'prefix',
+		'createdClasses'
 	],
 	#category : 'OpenAPI-Class-Builder-Objects',
 	#package : 'OpenAPI-Class-Builder',
@@ -158,19 +159,22 @@ OpenApiClassesBuilder >> createClassNamed: className fromApiSchemaDic: schema wi
 	| properties newClass arrayItems |
 	"Determine if this is an object or array"
 	({ (schema at: 'type') } flattened includes: 'object') ifTrue: [ "Step 1: Create a New Class""Step 2: Add Instance Variables""Step 3: Generate Accessor Methods""Step 4: Add a Reference to Parent Class""Step 5: Handle Nested Objects"
-		newClass := self
-			            createNewClass: className
-			            inPackage: packageName.
+		newClass := self createNewClass: className inPackage: packageName.
 
 		properties := schema at: 'properties' ifAbsent: [ Dictionary new ].
 
-		self createAccessorsFromProperties: properties inClass: newClass.
 
+		self createAccessorsFromProperties: properties inClass: newClass.
+		
 
 		parentClass ifNotNil: [
 			self
 				createAccessorsInClass: newClass
 				ForVarNamed: parentClass asVariableName ].
+						
+		self createNeoJSONReaderFor: newClass withShemaProperty: properties. 	
+			
+			
 		properties keysAndValuesDo: [ :key :value |
 			self
 				createClassNamed: key
@@ -188,6 +192,75 @@ OpenApiClassesBuilder >> createClassNamed: className fromApiSchemaDic: schema wi
 	^ newClass
 ]
 
+{ #category : 'NeoJSON' }
+OpenApiClassesBuilder >> createNeoJSONReaderFor: aClass withShemaProperty: properties [
+
+	| transformation attributs sourceCode objAttributs arrayOfObjAttributs |
+	sourceCode := 'configureNeoJSONReader: aNeoJSONReader
+	
+	"reader behavier with arrays"
+	{3}
+	
+	"configures reader for object attributs"
+	aNeoJSONReader for: self do: [ :mapping |
+		mapping mapInstVars: {1}. 
+		
+		"all custom reader"
+		{2}
+		 ].
+	^ aNeoJSONReader. 
+	'.
+
+	objAttributs := properties keys select: [ :key |
+		                { ((properties at: key) at: 'type') } flattened
+			                includes: 'object' ].
+
+
+
+	arrayOfObjAttributs := properties keys select: [ :obj |
+		                       { ((properties at: obj) at: 'type') }
+			                       flattened includes: 'array' ].
+
+
+	attributs := properties keys copyWithoutAll:
+		             arrayOfObjAttributs , objAttributs.
+
+
+
+	sourceCode := sourceCode format: {
+			              attributs asArray.
+			              (String cr join: {
+					               (String cr join: (objAttributs collect: [ :attr |
+							                 '(mapping mapInstVar: #' , attr
+							                 , ') valueSchema: ' , self prefix
+							                 , attr asPharoClassName , '.' ])).
+					               (String cr join:
+						                (arrayOfObjAttributs collect: [ :attr |
+							                 '(mapping mapInstVar: #' , attr
+							                 , ') valueSchema: #ArraysOf' , self prefix
+							                 , attr asPharoClassName , '.' ])) }).
+			              (String cr join:
+				               (arrayOfObjAttributs collect: [ :attr |
+					                'aNeoJSONReader
+					for: #ArraysOf{1}
+					customDo: [ :mapping | mapping listOfElementSchema: {1} ].'
+						                format: {
+								                (self prefix , attr asPharoClassName).
+								               } ])) }.
+
+
+
+	transformation := (RBAddMethodTransformation
+		                   sourceCode: sourceCode
+		                   in: aClass class
+		                   withProtocol: #neoJSONReader) generateChanges.
+
+	RBRefactoryChangeManager instance performChange:
+		transformation model changes.
+
+	^ aClass
+]
+
 { #category : 'generator' }
 OpenApiClassesBuilder >> createNewClass: aClassName inPackage: aPackageName [
 
@@ -199,7 +272,9 @@ OpenApiClassesBuilder >> createNewClass: aClassName inPackage: aPackageName [
 				                   className)
 			                  superclass: #Object;
 			                  packageName: aPackageName asSymbol;
-			                  execute ].
+			                  execute.
+			createdClasses add: self class environment at: className asSymbol. 
+			 ].
 
 
 	^ self class environment at: className asSymbol

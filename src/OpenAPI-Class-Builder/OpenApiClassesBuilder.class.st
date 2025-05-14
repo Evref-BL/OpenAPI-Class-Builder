@@ -183,32 +183,47 @@ OpenApiClassesBuilder >> createClassNamed: className fromApiSchemaDic: schema wi
 
 	| properties newClass arrayItems |
 	"Determine if this is an object or array"
-	({ (schema at: 'type') } flattened includes: 'object') ifTrue: [ "Step 1: Create a New Class""Step 2: Add Instance Variables""Step 3: Generate Accessor Methods""Step 4: Add a Reference to Parent Class""Step 5: Handle Nested Objects"
+	(schema isTypeObject) ifTrue: [ 
+		 
+		"Step 1: Create a New Class
+		Step 2: Add Instance Variables
+		Step 3: Generate Accessor Methods
+		Step 4: Add a Reference to Parent Class
+		Step 5: Handle Nested Objects"
 		newClass := self createNewClass: className inPackage: packageName.
 
 		properties := schema at: 'properties' ifAbsent: [ Dictionary new ].
-
-
 		self createAccessorsFromProperties: properties inClass: newClass.
-		
+
 
 		parentClass ifNotNil: [
 			self
 				createAccessorsInClass: newClass
 				ForVarNamed: parentClass asVariableName ].
-						
-		self createNeoJSONReaderFor: newClass withShemaProperty: properties. 	
-			
-			
+
+		self createNeoJSONReaderFor: newClass withShemaProperty: properties.
+
 		properties keysAndValuesDo: [ :key :value |
-			self
+		
+			value isCombinedType ifTrue: [ 
+				value valuesDo: [ :v | v do: [ :subSchema |
+					 self
+				createClassNamed: key
+				fromApiSchemaDic: subSchema
+				withParentClass: newClass ]
+					]
+				 ] ifFalse: [ 
+				self
 				createClassNamed: key
 				fromApiSchemaDic: value
-				withParentClass: newClass ] ].
+				withParentClass: newClass
+				 ].
+			 ] ].
 
-	({ (schema at: 'type') } flattened includes: 'array') ifTrue: [ "Step 6: Handle Arrays"
+	(schema isTypeArray) ifTrue: [ "Step 6: Handle Arrays"
+	
 		arrayItems := schema at: 'items'.
-		({ (arrayItems at: 'type') } flattened includes: 'object') ifTrue: [
+		(arrayItems isTypeObject) ifTrue: [
 			self
 				createClassNamed: className
 				fromApiSchemaDic: arrayItems
@@ -220,7 +235,7 @@ OpenApiClassesBuilder >> createClassNamed: className fromApiSchemaDic: schema wi
 { #category : 'NeoJSON' }
 OpenApiClassesBuilder >> createNeoJSONReaderFor: aClass withShemaProperty: properties [
 
-	| transformation attributs sourceCode objAttributs arrayOfObjAttributs |
+	| attributs sourceCode objAttributs arrayOfObjAttributs |
 	sourceCode := 'configureNeoJSONReader: aNeoJSONReader
 	
 	"reader behavier with arrays"
@@ -237,14 +252,12 @@ OpenApiClassesBuilder >> createNeoJSONReaderFor: aClass withShemaProperty: prope
 	'.
 
 	objAttributs := properties keys select: [ :key |
-		                { ((properties at: key) at: 'type') } flattened
-			                includes: 'object' ].
+		                (properties at: key) isTypeObject  ].
 
 
 
-	arrayOfObjAttributs := properties keys select: [ :obj |
-		                       { ((properties at: obj) at: 'type') }
-			                       flattened includes: 'array' ].
+	arrayOfObjAttributs := properties keys select: [ :key |
+		                       (properties at: key) isTypeArray ].
 
 
 	attributs := properties keys copyWithoutAll:
@@ -273,8 +286,11 @@ OpenApiClassesBuilder >> createNeoJSONReaderFor: aClass withShemaProperty: prope
 						                { (self prefix , attr asPharoClassName) } ])) }.
 
 
- self addMethodWithCode: sourceCode  toClass: aClass class withProtocol: #neoJSONReader.
-	
+	self
+		addMethodWithCode: sourceCode
+		toClass: aClass class
+		withProtocol: #neoJSONReader.
+
 
 	^ aClass
 ]

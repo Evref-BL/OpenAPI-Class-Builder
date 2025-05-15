@@ -20,3 +20,15 @@ Metacello new
 OpenApiClassesBuilder newClassNamed: 'CopilotsMetric' compileFromFilePath: '<path-to-your-json>/schema.json'. 
 
 ```
+
+# Example
+
+```smalltalk
+"fichier de schéma avec compiler de class"
+OpenApiClassesBuilder newClassNamed: 'CopilotsMetric' compileFromFilePath: 'schema.json'. 
+
+OpenApiClassesBuilder newClassNamed: 'GithubIssues' inPackage: #'MyTestPackage-Github' withPrefix: 'GS' compileFromFilePath: 'shema-list-issue-event-repo-github.json'. 
+
+"test de l'import depuis les data"
+OpenApiCopilotsMetric importFromJSON: 'data/2025-04-09_2025-05-05.json' asFileReference contents.
+```

@@ -251,13 +251,24 @@ OpenApiClassesBuilder >> createNeoJSONReaderFor: aClass withShemaProperty: prope
 	^ aNeoJSONReader. 
 	'.
 
-	objAttributs := properties keys select: [ :key |
-		                (properties at: key) isTypeObject  ].
+	objAttributs := (properties keys select: [ :key |
+		                 (properties at: key) isTypeObject ])
+		                asOrderedCollection.
 
 
+	arrayOfObjAttributs := (properties keys select: [ :key |
+		                        (properties at: key) isTypeArrayOfObjects ])
+		                       asOrderedCollection.
 
-	arrayOfObjAttributs := properties keys select: [ :key |
-		                       (properties at: key) isTypeArray ].
+
+	"go throught the combined types"
+	properties keys
+		select: [ :key | (properties at: key) isCombinedType ]
+		thenDo: [ :key |
+			(properties at: key) valuesDo: [ :v |
+				v do: [ :schema |
+					schema isTypeObject ifTrue: [ objAttributs add: key ].
+					schema isTypeArray ifTrue: [ arrayOfObjAttributs add: key ] ] ] ].
 
 
 	attributs := properties keys copyWithoutAll:

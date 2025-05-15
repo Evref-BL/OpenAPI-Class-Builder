@@ -18,6 +18,12 @@ Dictionary >> isTypeArray [
 ]
 
 { #category : '*OpenAPI-Class-Builder' }
+Dictionary >> isTypeArrayOfObjects [
+
+	^ self isTypeArray and: [ (self at: #items) isTypeObject  ]
+]
+
+{ #category : '*OpenAPI-Class-Builder' }
 Dictionary >> isTypeBoolean [
 
 	^ { (self at: 'type' ifAbsent: [ {  } ]) } flattened includes:

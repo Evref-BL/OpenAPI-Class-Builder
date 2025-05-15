@@ -23,12 +23,16 @@ OpenApiClassesBuilder newClassNamed: 'CopilotsMetric' compileFromFilePath: '<pat
 
 # Example
 
+extract the schema of data from the following REST API : [Github-Copilot-Metrics](https://docs.github.com/fr/enterprise-cloud@latest/rest/copilot/copilot-metrics?apiVersion=2022-11-28#get-copilot-metrics-for-an-enterprise).
+place the JSON result in a local file `schema.json`.
+
+Build another file `data.json` where you'll store the return data from the same API endpoint (or call the API from Pharo)
+ 
+In Pharo; run: 
 ```smalltalk
-"fichier de schéma avec compiler de class"
-OpenApiClassesBuilder newClassNamed: 'CopilotsMetric' compileFromFilePath: 'schema.json'. 
+"building class from schema file"
+OpenApiClassesBuilder newClassNamed: 'CopilotsMetric' inPackage: #'Copilot-Github' withPrefix: 'CG' compileFromFilePath: 'shema.json'. 
 
-OpenApiClassesBuilder newClassNamed: 'GithubIssues' inPackage: #'MyTestPackage-Github' withPrefix: 'GS' compileFromFilePath: 'shema-list-issue-event-repo-github.json'. 
-
-"test de l'import depuis les data"
-OpenApiCopilotsMetric importFromJSON: 'data/2025-04-09_2025-05-05.json' asFileReference contents.
+"test data import from the same API point"
+CGCopilotsMetric importFromJSON: 'data.json' asFileReference contents.
 ```

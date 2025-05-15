@@ -113,6 +113,19 @@ OpenApiClassesBuilder >> addMethodWithCode: aSourceCode toClass: aClass withProt
 ]
 
 { #category : 'adding' }
+OpenApiClassesBuilder >> addPrintOnToClass: aClass [
+
+	| sourceCode |
+	sourceCode := 'printOn: aStream
+		aStream nextPutAll: self name.'.
+	self
+		addMethodWithCode: sourceCode
+		toClass: aClass
+		withProtocol: #printOn.
+	^ aClass
+]
+
+{ #category : 'adding' }
 OpenApiClassesBuilder >> addVariable: aVarName inClass: aClass [
 
 	| transformation |
@@ -183,9 +196,7 @@ OpenApiClassesBuilder >> createClassNamed: className fromApiSchemaDic: schema wi
 
 	| properties newClass arrayItems |
 	"Determine if this is an object or array"
-	(schema isTypeObject) ifTrue: [ 
-		 
-		"Step 1: Create a New Class
+	schema isTypeObject ifTrue: [ "Step 1: Create a New Class
 		Step 2: Add Instance Variables
 		Step 3: Generate Accessor Methods
 		Step 4: Add a Reference to Parent Class
@@ -201,29 +212,27 @@ OpenApiClassesBuilder >> createClassNamed: className fromApiSchemaDic: schema wi
 				createAccessorsInClass: newClass
 				ForVarNamed: parentClass asVariableName ].
 
+		self addPrintOnToClass: newClass. 
 		self createNeoJSONReaderFor: newClass withShemaProperty: properties.
 
 		properties keysAndValuesDo: [ :key :value |
-		
-			value isCombinedType ifTrue: [ 
-				value valuesDo: [ :v | v do: [ :subSchema |
-					 self
-				createClassNamed: key
-				fromApiSchemaDic: subSchema
-				withParentClass: newClass ]
-					]
-				 ] ifFalse: [ 
-				self
-				createClassNamed: key
-				fromApiSchemaDic: value
-				withParentClass: newClass
-				 ].
-			 ] ].
+			value isCombinedType
+				ifTrue: [
+					value valuesDo: [ :v |
+						v do: [ :subSchema |
+							self
+								createClassNamed: key
+								fromApiSchemaDic: subSchema
+								withParentClass: newClass ] ] ]
+				ifFalse: [
+					self
+						createClassNamed: key
+						fromApiSchemaDic: value
+						withParentClass: newClass ] ] ].
 
-	(schema isTypeArray) ifTrue: [ "Step 6: Handle Arrays"
-	
+	schema isTypeArray ifTrue: [ "Step 6: Handle Arrays"
 		arrayItems := schema at: 'items'.
-		(arrayItems isTypeObject) ifTrue: [
+		arrayItems isTypeObject ifTrue: [
 			self
 				createClassNamed: className
 				fromApiSchemaDic: arrayItems
